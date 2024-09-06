@@ -1,0 +1,46 @@
+services:
+  xiq-ad-user-sync:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      x-bake:
+        platforms:
+          - linux/amd64
+    image: xiq-ad-user-sync
+    environment:
+      # configure env vars in the .env file
+      - LOG_LEVEL
+      - LOG_TO_FILE
+      - LDAP_HOSTS
+      - LDAP_DOMAIN
+      - LDAP_USERNAME
+      - LDAP_PASSWORD
+      - LDAP_AUTH_METHOD
+      - LDAP_SASL_MECHANISM
+      - LDAP_AUTO_BIND
+      - LDAP_DISABLE_CODES
+      - XIQ_URL
+      - XIQ_USERNAME
+      - XIQ_PASSWORD
+      - XIQ_VERIFY_SSL
+      - XIQ_PCG_ENABLED
+      - XIQ_CHECK_PASSWORD_AGAINST_PWNED
+      - XIQ_STRICT_PASSWORD_CHECK
+      - XIQ_PASSWORD_GENERATOR_USE_WORDS
+      - XIQ_PASSWORD_GENERATOR_WORD_COUNT
+      - XIQ_MAIL_FOR_SSIDS
+      - MAPPING_AD_GROUP_TO_XIQ_ROLE
+      - MAPPING_PCG
+      - QR_CODE_ENABLED
+      - QR_CODE_LOGO_PATH
+      - MAILGUN_API_KEY
+      - MAILGUN_DOMAIN
+      - MAILGUN_FROM
+      - MAIL_ENABLED
+      - MAIL_LOGO
+      - MAIL_COMPANY_NAME
+      - MAIL_EXTRA_MESSAGE
+      - MAIL_KB_ARTICLE_URL
+      - MAIL_SUPPORT_EMAIL
+      - MAIL_SUPPORT_PAGE_URL
+      - WEBOOK_MAPPING
