@@ -1,0 +1,39 @@
+pipeline {
+    agent {
+        docker {
+            image 'python:3.12-alpine'
+            reuseNode true
+        }
+    }
+    post {
+        failure {
+            updateGitlabCommitStatus name: 'build', state: 'failed'
+            updateGitlabCommitStatus name: 'execute', state: 'failed'
+        }
+        success {
+            updateGitlabCommitStatus name: 'build', state: 'success'
+            updateGitlabCommitStatus name: 'execute', state: 'success'
+        }
+        aborted {
+            updateGitlabCommitStatus name: 'build', state: 'canceled'
+            updateGitlabCommitStatus name: 'execute', state: 'canceled'
+        }
+    }
+    stages {
+        stage('build') {
+            steps {
+                updateGitlabCommitStatus name: 'build', state: 'running'
+                sh 'python -m venv venv && source venv/bin/activate && python -m pip install -r requirements.txt'
+            }
+        }
+        stage('execute') {
+            steps {
+                updateGitlabCommitStatus name: 'execute', state: 'running'
+                script {
+                    env.IN_DOCKER = 'true'
+                }
+                sh 'source venv/bin/activate && python XIQ-AD-PPSK-Sync.py'
+            }
+        }
+    }
+}
