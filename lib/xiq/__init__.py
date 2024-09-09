@@ -3,8 +3,8 @@ import logging
 from faker import Faker
 import hashlib
 from copy import deepcopy
-from lib.util import Status, StatusValue
-
+from lib.util import Status, StatusValue, calc_exponential_backoff
+import time
 
 class PcgUser:
     def __init__(self, name: str, email: str, user_group_name: str):
@@ -96,8 +96,12 @@ class XIQ:
             check_password_against_pwned: bool = False,
             strict_password_check: bool = True,
             password_generator_use_words=False,
-            password_word_count: int = 5
+            password_word_count: int = 5,
+            max_request_retries: int = 7,
+            request_retry_on_code: list = None
     ):
+        if request_retry_on_code is None:
+            request_retry_on_code = [400, 429, 500, 502, 503, 504]
         self.url = url.rstrip("/")
         self.current_status = current_status
         self.username = username
@@ -118,6 +122,8 @@ class XIQ:
         self.session.headers.update(self.default_headers)
         self.faker = Faker()
         self.http_success_codes = [200, 201, 202, 204]
+        self.max_request_retries = max_request_retries
+        self.request_retry_on_code = request_retry_on_code
 
     def get_auth_token(self) -> str | bool:
         """
@@ -199,7 +205,8 @@ class XIQ:
             url: str,
             json: dict = None,
             params: dict = None,
-            retry_auth_on_fail: bool = True
+            retry_auth_on_fail: bool = True,
+            retry: int = 0
     ) -> tuple[bool, requests.Response] | tuple[bool, None]:
         """
         Base request method to send requests to the XIQ API
@@ -213,6 +220,8 @@ class XIQ:
         :type params: dict
         :param retry_auth_on_fail: Whether to retry authentication if the request fails due to unauthorized
         :type retry_auth_on_fail: bool
+        :param retry: The current retry count
+        :type retry: int
         :return: The result of the operation as a boolean and the response object
         :rtype: tuple[bool, requests.Response] | tuple[bool, None]
         """
@@ -242,6 +251,29 @@ class XIQ:
             self.current_status.set_status(StatusValue.ERROR)
             return False, response
         if response.status_code not in self.http_success_codes:
+            # If the request failed and the status code is in the retry list
+            if retry < self.max_request_retries and response.status_code in self.request_retry_on_code:
+                self.logger.warning(
+                    f"Failed to send request: HTTP/{response.status_code} - {response.reason}, retrying...")
+                self.logger.debug(f"Response Body: \t\t{response.text}")
+                self.current_status.set_status(StatusValue.WARNING)
+                retry += 1
+                mx_delay = 60
+                sleep = calc_exponential_backoff(retry, max_delay=mx_delay)
+                if sleep == mx_delay:
+                    self.logger.warning(f"Max sleep time reached at {mx_delay} seconds")
+                self.logger.info(
+                    f"Retry count: {retry}, Max retries: {self.max_request_retries}, Sleeping for {sleep} seconds..."
+                )
+                time.sleep(sleep)
+                return self.__base_request(
+                    method=method,
+                    url=url,
+                    json=json,
+                    params=params,
+                    retry_auth_on_fail=retry_auth_on_fail,
+                    retry=retry
+                )
             self.logger.error(
                 f"Failed to send request: HTTP/{response.status_code} - {response.reason}"
             )

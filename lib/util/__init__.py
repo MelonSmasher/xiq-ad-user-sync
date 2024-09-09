@@ -7,6 +7,7 @@ import base64
 from pathlib import Path
 import requests
 import enum
+import random
 
 
 class StatusValue(enum.Enum):
@@ -25,6 +26,23 @@ class Status:
 
     def get_status(self):
         return self.status
+
+
+def calc_exponential_backoff(retry: int, base_delay: float = 0.5, max_delay: float = 60):
+    """
+    Function to calculate the exponential backoff delay
+    :param retry: The current retry count
+    :type retry: int
+    :param base_delay: The base delay in seconds
+    :type base_delay: float
+    :param max_delay: The maximum delay in seconds
+    :type max_delay: float
+    :return:
+    :rtype: float
+    """
+    # Exponential backoff formula: min(base_delay * 2^retry + jitter, max_delay)
+    sleep_time = min(base_delay * (2 ** retry) + random.uniform(0, 1), max_delay)
+    return sleep_time
 
 
 def init_logger(log_level: str = 'INFO', log_to_file: bool = False, log_path: str = 'log/'):
